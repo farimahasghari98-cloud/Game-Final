@@ -782,7 +782,8 @@
     { word: 'چهار', letters: ['چ', 'ه', 'ا', 'ر'], image: 'images/chahar.png', audio: 'sounds/chahar.m4a', meaning: 'Four' },
     { word: 'هشت', letters: ['ه', 'ش', 'ت'], image: 'images/hasht.png', audio: 'sounds/hasht.m4a', meaning: 'Eight' },
     { word: 'نه', letters: ['ن', 'ه'], image: 'images/noh.png', audio: 'sounds/noh.m4a', meaning: 'Nine' },
-        { word: 'قهوه', letters: ['ق', 'ه', 'و', 'ه'], image: 'images/qahveh.png', audio: 'sounds/qahveh.m4a', meaning: 'Coffee' },
+    { word: 'ده', letters: ['د', 'ه'], image: 'images/dah.png', audio: 'sounds/dah.m4a', meaning: 'Ten' },
+    { word: 'قهوه', letters: ['ق', 'ه', 'و', 'ه'], image: 'images/qahveh.png', audio: 'sounds/qahveh.m4a', meaning: 'Coffee' },
     { word: 'برف', letters: ['ب', 'ر', 'ف'], image: 'images/barf.png', audio: 'sounds/barf.m4a', meaning: 'Snow' },
     { word: 'کیف', letters: ['ک', 'ی', 'ف'], image: 'images/kif.png', audio: 'sounds/kif.m4a', meaning: 'Bag' },
     { word: 'چاقو', letters: ['چ', 'ا', 'ق', 'و'], image: 'images/chaqu.png', audio: 'sounds/chaqu.m4a', meaning: 'Knife' },
@@ -830,21 +831,41 @@
   ];
 
   /* ====== Auto-distractors: visually similar letters ====== */
-  const SIMILAR = {
-    'ب': ['پ', 'ت', 'ن', 'ث'],
-    'پ': ['ب', 'ت', 'ث', 'ن'],
-    'ت': ['ب', 'پ', 'ث', 'ن'],
-    'د': ['ذ', 'ر'],
-    'ر': ['ز', 'ژ', 'و'],
-    'ز': ['ر', 'ژ', 'ذ'],
-    'ژ': ['ز', 'ر'],
-    'و': ['ر', 'م'],
-    'ا': ['آ', 'ل'],
-    'آ': ['ا', 'ل'],
-    'ی': ['ن', 'ب', 'ت'],
-    'م': ['و', 'ن', 'ف']
-  };
-  const FALLBACK = ['ن', 'ب', 'ت', 'پ', 'ز', 'ر', 'ذ', 'د', 'ژ', 'ف'];
+  // Groups of letters that look alike (same body shape, different dots / strokes).
+  // Together they cover all 32 Persian letters; a letter may belong to more than one group.
+  const LOOKALIKE_GROUPS = [
+    ['ب', 'پ', 'ت', 'ث', 'ن', 'ی'],   // the "tooth" shape, differing only in dots
+    ['ج', 'چ', 'ح', 'خ'],
+    ['د', 'ذ'],
+    ['ر', 'ز', 'ژ'],
+    ['ر', 'و'],
+    ['س', 'ش'],
+    ['ص', 'ض'],
+    ['ط', 'ظ'],
+    ['ع', 'غ'],
+    ['ف', 'ق'],
+    ['ک', 'گ'],
+    ['ا', 'آ'],
+    ['ا', 'ل'],
+    ['و', 'م'],
+    ['ه', 'ح']
+  ];
+  // SIMILAR['ب'] -> every letter that can be confused with 'ب'
+  const SIMILAR = {};
+  LOOKALIKE_GROUPS.forEach(group => group.forEach(ch => {
+    SIMILAR[ch] = [...new Set([...(SIMILAR[ch] || []), ...group.filter(x => x !== ch)])];
+  }));
+  const FALLBACK = ['ن', 'ب', 'ت', 'پ', 'ز', 'ر', 'ذ', 'د', 'ژ', 'ف', 'ع', 'غ', 'ق', 'ک'];
+
+  /* ====== Homophones (letters that sound the same in Persian) ====== */
+  const HOMOPHONES = [
+    ['ز', 'ذ', 'ض', 'ظ'],
+    ['س', 'ص', 'ث'],
+    ['ق', 'غ'],
+    ['ح', 'ه'],
+    ['ت', 'ط']
+  ];
+  const homophonesOf = ch => [...new Set(HOMOPHONES.filter(g => g.includes(ch)).flatMap(g => g.filter(x => x !== ch)))];
 
   function shuffle(arr) {
     const a = arr.slice();
@@ -882,31 +903,51 @@
     if (lv.letters.join('') !== lv.word) console.warn('Letters do not spell the word:', lv.word, lv.letters);
   });
 
-  /* ====== Spelling similarity (mode 2 distractors) ====== */
-  const areLookAlikes = (a, b) => (SIMILAR[a] || []).includes(b) || (SIMILAR[b] || []).includes(a);
+  /* ====== Misspellings (mode 2 distractors) ====== */
+  // Returns `count` believable FAKE spellings of `word`, each differing by one letter:
+  //  1) swap a letter for a homophone (e.g. جغد -> جقد),
+  //  2) if there are not enough, swap a letter for a visual look-alike (e.g. جغد -> جغذ).
+  // Candidates come round-robin from different letters of the word, so the mistakes land in
+  // different places. A candidate is never the word itself, never a duplicate, and never a
+  // real word from `levels`.
+  function makeMisspellings(word, count = 2) {
+    const chars = Array.from(word);
+    const realWords = new Set(levels.map(l => l.word));
+    const seen = new Set([word]);
+    const out = [];
+    const variant = (i, c) => { const a = chars.slice(); a[i] = c; return a.join(''); };
+    const usable = v => !seen.has(v) && !realWords.has(v);
 
-  // Higher score = more similar spelling to `target`:
-  //  +2 per shared letter (counting repeats), +1 per letter in the same position,
-  //  start/end letter: +2 if identical, +1 if look-alikes, -0.5 per letter of length difference.
-  function spellingScore(target, other) {
-    const A = Array.from(target), B = Array.from(other);
-    const left = B.slice();
-    let common = 0;
-    A.forEach(ch => { const k = left.indexOf(ch); if (k > -1) { common++; left.splice(k, 1); } });
-    const samePos = A.reduce((n, ch, i) => n + (B[i] === ch ? 1 : 0), 0);
-    const edge = (x, y) => x === y ? 2 : (areLookAlikes(x, y) ? 1 : 0);
-    const ends = edge(A[0], B[0]) + edge(A[A.length - 1], B[B.length - 1]);
-    return common * 2 + samePos + ends - 0.5 * Math.abs(A.length - B.length);
-  }
+    // one shuffled queue of candidate spellings per letter position
+    const queues = options => shuffle(chars.map((_, i) => i))
+      .map(i => shuffle(options(chars[i]).map(c => variant(i, c))));
 
-  // The `count` other words from `levels` that are spelled most like `lv` (ties broken randomly).
-  function similarWords(lv, count = 2) {
-    return levels
-      .filter(l => l.word !== lv.word)
-      .map(l => ({ l, s: spellingScore(lv.word, l.word) + Math.random() * 0.01 }))
-      .sort((a, b) => b.s - a.s)
-      .slice(0, count)
-      .map(x => x.l);
+    const drain = qs => {
+      while (out.length < count && qs.some(q => q.length)) {
+        for (const q of qs) {
+          while (q.length) {
+            const v = q.shift();
+            if (usable(v)) { seen.add(v); out.push(v); break; }
+          }
+          if (out.length === count) break;
+        }
+      }
+    };
+
+    drain(queues(homophonesOf));                 // 1) sound-alike mistakes first
+    drain(queues(ch => SIMILAR[ch] || []));      // 2) then look-alike mistakes
+
+    // last resort (practically never needed): change two letters at once
+    for (let tries = 0; out.length < count && tries < 60; tries++) {
+      const base = chars.slice();
+      shuffle(chars.map((_, i) => i)).slice(0, 2).forEach(i => {
+        const pool = [...homophonesOf(base[i]), ...(SIMILAR[base[i]] || [])];
+        if (pool.length) base[i] = pool[Math.floor(Math.random() * pool.length)];
+      });
+      const v = base.join('');
+      if (usable(v)) { seen.add(v); out.push(v); }
+    }
+    return out;
   }
 
   /* ====== Elements ====== */
@@ -996,10 +1037,13 @@
 
   /* ====== Multiple choice (modes 2 and 3): exactly 3 options ====== */
   function buildChoices() {
-    const others = mode === 2
-      ? similarWords(level, 2)                                         // look-alike spellings
-      : shuffle(levels.filter(l => l.word !== level.word)).slice(0, 2); // mode 3: any two other words
-    choices = shuffle([level, ...others]).map(l => ({ word: l.word, correct: l === level }));
+    const wrong = mode === 2
+      ? makeMisspellings(level.word, 2)                                                      // mode 2: fake, plausible misspellings
+      : shuffle(levels.filter(l => l.word !== level.word)).slice(0, 2).map(l => l.word);     // mode 3: two other real words
+    choices = shuffle([
+      { word: level.word, correct: true },
+      ...wrong.map(w => ({ word: w, correct: false }))
+    ]);
   }
 
   function renderChoices() {
