@@ -6,7 +6,7 @@
 <title>Learn Persian</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Lalezar&family=Vazirmatn:wght@400;600;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Noto+Naskh+Arabic:wght@400;700&family=Vazirmatn:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
   :root {
     /* palette */
@@ -27,10 +27,11 @@
     --c4-soft: #e6dfff; --c4-edge: #a58cf5;
     --c5-soft: #ffe1d3; --c5-edge: #f59a73;
     --ui: "Fredoka", system-ui, "Segoe UI", Roboto, sans-serif;
-    --display: "Lalezar", "Vazirmatn", Tahoma, system-ui, sans-serif;
+    /* All Persian letters and words: B Nazanin where installed (Windows / Office), otherwise a textbook-style Naskh face */
+    --fa: "B Nazanin", "BNazanin", "Nazanin", "Noto Naskh Arabic", "Vazirmatn", Tahoma, serif;
     --radius: 22px;
     --gap: 10px;
-    /* Number of letter squares; set from JS for every level. */
+    /* Number of letter squares; set from JS for every word. */
     --n: 4;
     /* Square size: max 84px, shrinks so every square fits on narrow phones. */
     --size: min(84px, calc((100vw - 48px - (var(--n) - 1) * var(--gap)) / var(--n)));
@@ -51,6 +52,7 @@
     justify-content: center;
     overflow-x: hidden;
   }
+  body.modal-open { overflow: hidden; }
   /* soft floating colour blobs behind everything */
   body::before {
     content: ""; position: fixed; inset: -15%; z-index: -1; pointer-events: none;
@@ -76,8 +78,11 @@
   button { font: inherit; color: inherit; cursor: pointer; border: 0; background: none; }
   button:focus-visible { outline: 3px solid var(--violet); outline-offset: 3px; }
 
-  /* ---------- Views: main menu / game area ---------- */
-  #main-menu { width: 100%; display: flex; flex-direction: column; gap: 16px; padding-top: 5vh; }
+  /* Persian text anywhere in the UI chrome */
+  .fa { font-family: var(--fa); font-weight: 700; }
+
+  /* ---------- Views: lesson dashboard / lesson modes / game area ---------- */
+  .view { width: 100%; display: flex; flex-direction: column; gap: 16px; padding-top: 5vh; }
   #game-area { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 20px; }
 
   .menu-title {
@@ -89,6 +94,7 @@
     color: transparent; -webkit-text-fill-color: transparent;
     filter: drop-shadow(0 4px 0 rgba(255, 255, 255, .8));
   }
+  .menu-title.small { font-size: 2.5rem; }
   .menu-sub { margin: -6px 0 10px; text-align: center; color: var(--muted); font-weight: 500; font-size: 1.1rem; }
 
   .menu-card {
@@ -109,7 +115,7 @@
     flex: none; width: 62px; height: 62px; border-radius: 20px;
     display: grid; place-items: center;
     color: #fff;
-    font-family: var(--display); font-size: 2.3rem; line-height: 1;
+    font-family: var(--fa); font-weight: 700; font-size: 2.5rem; line-height: 1;
     padding-bottom: .1em;
     text-shadow: 0 2px 0 rgba(0, 0, 0, .12);
     transition: transform .25s cubic-bezier(.3, 1.6, .5, 1);
@@ -125,8 +131,35 @@
   .menu-go { flex: none; width: 24px; height: 24px; color: var(--violet); transition: transform .2s; }
   .menu-card:hover .menu-go { transform: translateX(5px); }
 
+  /* Lesson cards (dashboard) */
+  .lesson-card .menu-icon { font-family: var(--ui); font-size: 2rem; padding-bottom: 0; }
+  .lesson-card[data-lesson="1"] .menu-icon { background: #ff6fa5; box-shadow: 0 5px 0 #d94683; }
+  .lesson-card[data-lesson="2"] .menu-icon { background: #1fbf8f; box-shadow: 0 5px 0 #0f9a71; }
+  .lesson-card[data-lesson="3"] .menu-icon { background: #4a9dff; box-shadow: 0 5px 0 #2c7ad9; }
+  .lesson-card[data-lesson="4"] .menu-icon { background: #ffb22e; box-shadow: 0 5px 0 #d98e00; }
+  .lesson-card[data-lesson="5"] .menu-icon { background: #8f6bff; box-shadow: 0 5px 0 #5a3fd6; }
+  .lesson-card.locked { background: rgba(255, 255, 255, .42); }
+  .lesson-card.locked .menu-icon { filter: saturate(.3) brightness(1.04); opacity: .85; }
+  .lesson-card.locked .menu-text strong { color: #5b5880; }
+  .lock-chip {
+    flex: none;
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 12px; border-radius: 999px;
+    background: #fff; color: var(--muted);
+    font-size: .85rem; font-weight: 800;
+    box-shadow: 0 3px 0 #e2dcf5;
+  }
+  .lock-chip svg { width: 16px; height: 16px; }
+  .free-chip {
+    flex: none;
+    padding: 6px 12px; border-radius: 999px;
+    background: rgba(19, 173, 127, .16); color: var(--ok-ink);
+    font-size: .85rem; font-weight: 800;
+    box-shadow: 0 0 0 2px rgba(19, 173, 127, .3);
+  }
+
   .back-btn {
-    align-self: flex-start;          /* RTL: sits on the right edge */
+    align-self: flex-start;
     display: inline-flex; align-items: center; gap: 8px;
     min-height: 42px; padding: 0 18px 0 14px;
     border-radius: 999px;
@@ -139,14 +172,25 @@
   .back-btn svg { width: 16px; height: 16px; }
   .back-btn:hover { transform: translateY(-2px) scale(1.04); }
   .back-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #d9d0fb, 0 3px 6px rgba(94, 70, 170, .14); }
-  #game-area:not([data-mode="1"]) .back-btn { margin-bottom: -4px; }
+  .game-head { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .lesson-tag {
+    padding: 6px 14px; border-radius: 999px;
+    background: var(--glass); border: 1.5px solid var(--glass-line);
+    font-size: .85rem; font-weight: 800; color: var(--muted); white-space: nowrap;
+  }
+  #game-area:not([data-mode="1"]) .game-head { margin-bottom: -4px; }
 
-  /* ---------- Level progress ---------- */
-  .progress { width: 100%; display: flex; align-items: center; gap: 12px; }
+  /* ---------- Progress ---------- */
+  .progress { width: 100%; display: flex; align-items: center; gap: 10px; }
   .level-label {
     padding: 4px 14px; border-radius: 999px;
     background: var(--glass); border: 1.5px solid var(--glass-line);
     font-size: .88rem; font-weight: 800; color: var(--violet-edge); white-space: nowrap;
+    transition: background .3s, color .3s;
+  }
+  .level-label.review {
+    background: var(--sun); color: var(--sun-ink); border-color: #fff;
+    box-shadow: 0 3px 0 var(--sun-edge);
   }
   .track {
     flex: 1; height: 14px; border-radius: 999px;
@@ -161,6 +205,7 @@
     box-shadow: inset 0 -3px 0 rgba(0, 0, 0, .1);
     transition: width .8s cubic-bezier(.3, 1.3, .3, 1);
   }
+  .left-chip { min-width: 3.4em; text-align: end; font-size: .85rem; font-weight: 800; color: var(--muted); white-space: nowrap; }
 
   /* ---------- Picture ---------- */
   .picture {
@@ -255,11 +300,12 @@
     width: 100%; height: 100%;
     display: grid; place-items: center;
     border-radius: var(--radius);
-    font-family: "Vazirmatn", Tahoma, system-ui, sans-serif;   /* clearest isolated letter shapes */
-    font-size: calc(var(--size) * .6);
-    font-weight: 800;
+    font-family: var(--fa);
+    font-size: calc(var(--size) * .66);
+    font-weight: 700;
     line-height: 1;
     letter-spacing: 0;          /* never space Arabic-script letters */
+    direction: rtl;
     padding-bottom: .1em;
     color: var(--ink);
     transition: transform .15s cubic-bezier(.3, 1.5, .5, 1), opacity .6s;
@@ -323,9 +369,9 @@
     position: absolute; inset: 0;
     display: grid; place-items: center;
     color: #fff;
-    font-family: var(--display);
-    font-size: calc(var(--size) * .7);
-    font-weight: 400;
+    font-family: var(--fa);
+    font-size: calc(var(--size) * .8);
+    font-weight: 700;
     line-height: 1.6;
     letter-spacing: 0;
     padding-bottom: .3em;
@@ -355,9 +401,8 @@
   .status.bad #status { color: var(--bad-ink); background: rgba(242, 71, 93, .14); box-shadow: 0 0 0 2px rgba(242, 71, 93, .4), 0 0 16px rgba(242, 71, 93, .3); }
   @keyframes statusPop { from { transform: scale(.7); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 
-  /* ---------- Bottom area: letter pool, with the Finale layer on top of it ---------- */
+  /* ---------- Letter pool ---------- */
   .bottom { width: 100%; display: grid; }
-  .bottom > * { grid-area: 1 / 1; }
 
   .pool {
     direction: rtl;
@@ -372,22 +417,20 @@
     box-shadow: 0 6px 0 var(--edge, #ccc), 0 14px 18px rgba(94, 70, 170, .18);
     transition: transform .15s cubic-bezier(.3, 1.6, .5, 1), box-shadow .15s, opacity .7s;
   }
-  /* colour follows the letter tile (stable data-id), not its position in the pool */
-  .pool .tile[data-id="0"], .pool .tile[data-id="6"] { --soft: var(--c0-soft); --edge: var(--c0-edge); }
-  .pool .tile[data-id="1"], .pool .tile[data-id="7"] { --soft: var(--c3-soft); --edge: var(--c3-edge); }
-  .pool .tile[data-id="2"] { --soft: var(--c1-soft); --edge: var(--c1-edge); }
-  .pool .tile[data-id="3"] { --soft: var(--c2-soft); --edge: var(--c2-edge); }
-  .pool .tile[data-id="4"] { --soft: var(--c4-soft); --edge: var(--c4-edge); }
-  .pool .tile[data-id="5"] { --soft: var(--c5-soft); --edge: var(--c5-edge); }
+  /* colour follows the letter tile (stable data-c), not its position in the pool */
+  .pool .tile[data-c="0"] { --soft: var(--c0-soft); --edge: var(--c0-edge); }
+  .pool .tile[data-c="1"] { --soft: var(--c3-soft); --edge: var(--c3-edge); }
+  .pool .tile[data-c="2"] { --soft: var(--c1-soft); --edge: var(--c1-edge); }
+  .pool .tile[data-c="3"] { --soft: var(--c2-soft); --edge: var(--c2-edge); }
+  .pool .tile[data-c="4"] { --soft: var(--c4-soft); --edge: var(--c4-edge); }
+  .pool .tile[data-c="5"] { --soft: var(--c5-soft); --edge: var(--c5-edge); }
   .pool .tile:hover { transform: translateY(-4px) scale(1.08) rotate(-2deg); box-shadow: 0 10px 0 var(--edge), 0 20px 24px rgba(94, 70, 170, .24); }
   .pool .tile:active { transform: translateY(5px) scale(.97); box-shadow: 0 1px 0 var(--edge), 0 4px 8px rgba(94, 70, 170, .18); }
   .pool .tile.fade { opacity: 0; transform: scale(.6) rotate(12deg); pointer-events: none; }
 
-  .actions { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; pointer-events: none; }
-  .actions > * { pointer-events: auto; }
   .nav { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 12px; margin-top: 6px; }
 
-  /* Next level: sunny 3D pill */
+  /* Next: sunny 3D pill */
   .next-btn {
     display: inline-flex; align-items: center; gap: 10px;
     min-height: 64px;
@@ -410,7 +453,7 @@
   .next-btn:hover .arrow { transform: translateX(4px); }
   .next-btn:active { transform: translateY(6px) scale(.98); box-shadow: 0 1px 0 var(--sun-edge), 0 4px 8px rgba(224, 160, 0, .4); }
   .next-btn:focus-visible { outline-color: var(--sun-ink); }
-  /* Previous level: white 3D pill, same height */
+  /* Previous: white 3D pill, same height */
   .prev-btn {
     display: inline-flex; align-items: center; gap: 8px;
     min-height: 64px;
@@ -432,14 +475,14 @@
   .prev-btn:hover { transform: translateY(-3px) scale(1.06); box-shadow: 0 10px 0 #d9d0fb, 0 20px 26px rgba(94, 70, 170, .22); }
   .prev-btn:hover .arrow { transform: translateX(-4px); }
   .prev-btn:active { transform: translateY(6px) scale(.98); box-shadow: 0 1px 0 #d9d0fb, 0 4px 8px rgba(94, 70, 170, .16); }
-  /* First level has no Previous, last level has no Next */
+  /* Previous is off on the first word and during review */
   .prev-btn:disabled, .next-btn:disabled {
     opacity: .4; cursor: default; pointer-events: none;
     transform: translateY(5px); box-shadow: 0 2px 0 rgba(0, 0, 0, .12); filter: grayscale(.7);
   }
   @keyframes rise { from { opacity: 0; transform: translateY(14px) scale(.8); } to { opacity: 1; transform: none; } }
 
-  /* End of game */
+  /* Review intro + end of lesson cards */
   .finale {
     position: relative; overflow: hidden;
     width: 100%;
@@ -482,7 +525,9 @@
     background: linear-gradient(100deg, #ff5f9a, #7b5cff 60%, #2aa8ff);
     -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent;
   }
+  .finale h2.long { font-size: 1.75rem; }
   .finale p { margin: 0 0 10px; font-size: 1.1rem; font-weight: 700; line-height: 1.7; }
+  .finale-actions, .modal-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
   .again {
     padding: 10px 26px; border-radius: 999px;
     background: var(--violet); color: #fff;
@@ -492,6 +537,19 @@
   }
   .again:hover { transform: translateY(-2px) scale(1.06); }
   .again:active { transform: translateY(4px); box-shadow: 0 1px 0 var(--violet-edge); }
+  .ghost-btn {
+    padding: 10px 24px; border-radius: 999px;
+    background: #fff; color: var(--violet-edge);
+    font-weight: 800; font-size: 1rem;
+    box-shadow: 0 5px 0 #d9d0fb, 0 10px 16px rgba(94, 70, 170, .14);
+    transition: transform .15s cubic-bezier(.3, 1.5, .5, 1), box-shadow .15s;
+  }
+  .ghost-btn:hover { transform: translateY(-2px) scale(1.06); }
+  .ghost-btn:active { transform: translateY(4px); box-shadow: 0 1px 0 #d9d0fb; }
+
+  /* Review intro / lesson complete: hide the play area, keep the progress bar */
+  #game-area[data-state="intro"] > :is(.howto, .picture, .meaning, .audio-btn, .board, .status, .choices, .bottom, .nav),
+  #game-area[data-state="done"]  > :is(.howto, .picture, .meaning, .audio-btn, .board, .status, .choices, .bottom, .nav) { display: none !important; }
 
   /* Short English how-to line (one per mode, shown by data-mode) */
   .howto {
@@ -514,6 +572,7 @@
     display: grid; place-items: center;
     font-size: .72rem; font-weight: 800; font-style: italic;
   }
+  .howto .fa { font-size: 1.15em; }
   #game-area[data-mode="1"] .howto[data-for="1"],
   #game-area[data-mode="2"] .howto[data-for="2"],
   #game-area[data-mode="3"] .howto[data-for="3"] { display: flex; }
@@ -545,7 +604,7 @@
     background: var(--soft, #fff);
     color: var(--ink);
     box-shadow: 0 6px 0 var(--edge, #ccc), 0 14px 18px rgba(94, 70, 170, .16);
-    font-family: var(--display); font-size: 2.1rem; font-weight: 400; line-height: 1.5;
+    font-family: var(--fa); font-size: 2.4rem; font-weight: 700; line-height: 1.5;
     letter-spacing: 0;
     transition: transform .15s cubic-bezier(.3, 1.6, .5, 1), box-shadow .15s, background .3s, color .3s, opacity .4s;
   }
@@ -567,7 +626,7 @@
   }
   .choice.dim { opacity: .35; pointer-events: none; transform: scale(.97); }
 
-  /* New level entrance */
+  /* New word entrance */
   #game-area.enter > .picture, #game-area.enter > .meaning, #game-area.enter > .audio-btn, #game-area.enter > .board, #game-area.enter > .choices, #game-area.enter > .bottom {
     animation: enter .5s cubic-bezier(.3, 1.4, .5, 1) both;
   }
@@ -576,6 +635,64 @@
   #game-area.enter > .bottom { animation-delay: .15s; }
   @keyframes enter { from { opacity: 0; transform: translateY(18px) scale(.96); } to { opacity: 1; transform: none; } }
 
+  /* ---------- Unlock modal ---------- */
+  .modal {
+    position: fixed; inset: 0; z-index: 50;
+    display: grid; place-items: center;
+    padding: 20px;
+    background: rgba(43, 37, 82, .45);
+    -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+    animation: fade .25s both;
+  }
+  @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+  .modal-card {
+    width: 100%; max-width: 420px;
+    padding: 26px 22px 22px;
+    border-radius: 30px;
+    background: rgba(255, 255, 255, .94);
+    border: 1.5px solid #fff;
+    box-shadow: 0 24px 60px rgba(60, 40, 140, .35);
+    text-align: center;
+    display: grid; gap: 12px; justify-items: center;
+    animation: rise .4s cubic-bezier(.2, 1.3, .4, 1) both;
+  }
+  .modal-icon {
+    width: 64px; height: 64px; border-radius: 22px;
+    display: grid; place-items: center;
+    background: var(--violet); color: #fff;
+    box-shadow: 0 5px 0 var(--violet-edge), 0 12px 20px rgba(90, 63, 214, .3);
+  }
+  .modal-icon svg { width: 32px; height: 32px; }
+  .modal-card h2 { margin: 4px 0 0; font-family: var(--ui); font-weight: 700; font-size: 1.7rem; line-height: 1.3; }
+  .modal-card p { margin: 0; color: var(--muted); font-weight: 600; line-height: 1.6; }
+  .modal-card label { width: 100%; text-align: start; font-size: .85rem; font-weight: 800; color: var(--violet-edge); }
+  .modal-form { width: 100%; display: grid; gap: 8px; justify-items: center; }
+  .modal-input {
+    width: 100%; min-height: 54px;
+    padding: 0 16px;
+    border-radius: 18px;
+    border: 3px solid #d9d0fb;
+    background: #fff;
+    color: var(--ink);
+    font: 600 1.15rem var(--ui);
+    letter-spacing: .06em; text-align: center;
+    outline: none;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  .modal-input:focus { border-color: var(--violet); box-shadow: 0 0 0 4px rgba(123, 92, 255, .2); }
+  .modal-input.bad { border-color: var(--bad); animation: shake .5s; }
+  .field-error { min-height: 1.3em; color: var(--bad-ink); font-size: .92rem; font-weight: 700; }
+
+  .toast {
+    position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); z-index: 60;
+    transform: translateX(-50%);
+    padding: 12px 22px; border-radius: 999px;
+    background: var(--ok); color: #fff;
+    font-weight: 800; font-size: 1rem; white-space: nowrap;
+    box-shadow: 0 5px 0 var(--ok-edge), 0 14px 24px rgba(19, 173, 127, .4);
+    animation: rise .4s cubic-bezier(.2, 1.3, .4, 1) both;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; transition-delay: 0s !important; animation-delay: 0s !important; }
   }
@@ -583,9 +700,22 @@
 </head>
 <body>
 <main id="main">
-  <div id="main-menu">
+
+  <!-- 1. Lesson dashboard -->
+  <section class="view" id="home">
     <h1 class="menu-title">Learn Persian</h1>
-    <p class="menu-sub">Select a game mode to practice</p>
+    <p class="menu-sub">Choose a lesson to start</p>
+    <div id="lessonList" style="display:contents"></div>
+  </section>
+
+  <!-- 2. The three game modes of one lesson -->
+  <section class="view" id="lesson-menu" hidden>
+    <button class="back-btn" id="lessonBack" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+      <span>All Lessons</span>
+    </button>
+    <h1 class="menu-title small" id="lessonTitle">Lesson 1</h1>
+    <p class="menu-sub" id="lessonSub">Select a game mode to practice</p>
 
     <button class="menu-card" type="button" data-mode="1">
       <span class="menu-icon" aria-hidden="true">آ</span>
@@ -604,22 +734,27 @@
       <span class="menu-text"><strong>Word &amp; Image Match</strong><span>Use the picture and meaning to pick the Persian word</span></span>
       <svg class="menu-go" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
     </button>
-  </div>
+  </section>
 
-  <div id="game-area" data-mode="1" hidden>
-    <button class="back-btn" id="backBtn" type="button">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
-      <span>Back to Menu</span>
-    </button>
+  <!-- 3. The game -->
+  <div id="game-area" data-mode="1" data-state="play" hidden>
+    <div class="game-head">
+      <button class="back-btn" id="backBtn" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+        <span>Back</span>
+      </button>
+      <span class="lesson-tag" id="lessonTag"></span>
+    </div>
 
     <div class="progress">
       <span class="level-label" id="levelLabel"></span>
-      <div class="track" id="track" role="progressbar" aria-label="Game progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+      <div class="track" id="track" role="progressbar" aria-label="Round progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
         <div class="fill" id="fill"></div>
       </div>
+      <span class="left-chip" id="leftChip"></span>
     </div>
 
-    <p class="howto" data-for="1" dir="ltr">Select the letters in the correct order to spell the word.</p>
+    <p class="howto" data-for="1" dir="ltr"><span>Tap the letters in order. Inside a word use the connected form (<span class="fa" dir="rtl">بـ</span>), at the end use the plain form (<span class="fa" dir="rtl">ب</span>).</span></p>
     <p class="howto" data-for="2" dir="ltr">Choose the correct spelling.</p>
     <p class="howto" data-for="3" dir="ltr">Match the correct Persian word to the image.</p>
 
@@ -653,19 +788,9 @@
 
     <div class="bottom">
       <div class="pool" id="pool" aria-label="Available letters"></div>
-      <div class="actions">
-        <div class="finale" id="finale" hidden>
-          <div class="star" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="currentColor"><path d="m12 2.8 2.7 5.8 6.3.8-4.6 4.4 1.2 6.3L12 17l-5.6 3.1 1.2-6.3L3 9.4l6.3-.8z"/></svg>
-          </div>
-          <h2>Great job!</h2>
-          <p>You completed all words!</p>
-          <button class="again" id="again" type="button">Play Again</button>
-        </div>
-      </div>
     </div>
 
-    <nav class="nav" id="nav" aria-label="Level navigation">
+    <nav class="nav" id="nav" aria-label="Word navigation">
       <button class="prev-btn" id="prevBtn" type="button">
         <span class="arrow" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12H5"/><path d="M11 6l-6 6 6 6"/></svg>
@@ -679,160 +804,241 @@
         </span>
       </button>
     </nav>
+
+    <!-- Transition before the review round -->
+    <section class="finale" id="reviewIntro" hidden>
+      <div class="star" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>
+      </div>
+      <h2 class="long">Let's review the words you missed!</h2>
+      <p id="reviewText"></p>
+      <button class="again" id="startReview" type="button">Start Review</button>
+    </section>
+
+    <!-- Lesson complete -->
+    <section class="finale" id="finale" hidden>
+      <div class="star" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="m12 2.8 2.7 5.8 6.3.8-4.6 4.4 1.2 6.3L12 17l-5.6 3.1 1.2-6.3L3 9.4l6.3-.8z"/></svg>
+      </div>
+      <h2>Lesson Complete!</h2>
+      <p id="finaleText">You completed all words!</p>
+      <div class="finale-actions">
+        <button class="again" id="again" type="button">Play Again</button>
+        <button class="ghost-btn" id="toLessons" type="button">Back to Lessons</button>
+      </div>
+    </section>
   </div>
 </main>
 
+<!-- Unlock modal -->
+<div class="modal" id="unlockModal" hidden>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="unlockTitle" aria-describedby="unlockMsg">
+    <div class="modal-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+    </div>
+    <h2 id="unlockTitle">Lesson Locked</h2>
+    <p id="unlockMsg">Complete your enrollment and contact me via Telegram/WhatsApp to receive your unlock password.</p>
+    <form class="modal-form" id="unlockForm" autocomplete="off" novalidate>
+      <label for="unlockInput">Access Password (Unlock Code)</label>
+      <input class="modal-input" id="unlockInput" type="text" inputmode="text" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Enter unlock code" dir="ltr">
+      <div class="field-error" id="unlockError" role="alert"></div>
+      <div class="modal-actions">
+        <button class="again" type="submit">Unlock</button>
+        <button class="ghost-btn" id="unlockCancel" type="button">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" hidden></div>
+
 <script>
-  /* ====== Level database (from the spreadsheet: word, letters, image, audio, meaning) ====== */
+  /* ====== Level database (from the spreadsheet: lesson, word, letters, image, audio, meaning) ====== */
   const levels = [
-    { word: 'آب', letters: ['آ', 'ب'], image: 'images/ab.png', audio: 'sounds/ab.m4a', meaning: 'Water' },
-    { word: 'توپ', letters: ['ت', 'و', 'پ'], image: 'images/tup.png', audio: 'sounds/tup.m4a', meaning: 'Ball' },
-    { word: 'پا', letters: ['پ', 'ا'], image: 'images/pa.png', audio: 'sounds/pa.m4a', meaning: 'Foot' },
-    { word: 'پتو', letters: ['پ', 'ت', 'و'], image: 'images/patu.png', audio: 'sounds/patu.m4a', meaning: 'Blanket' },
-    { word: 'توت', letters: ['ت', 'و', 'ت'], image: 'images/tut.png', audio: 'sounds/tut.m4a', meaning: 'Mulberry' },
-    { word: 'تاب', letters: ['ت', 'ا', 'ب'], image: 'images/tab.png', audio: 'sounds/tab.m4a', meaning: 'Swing' },
-    { word: 'بابا', letters: ['ب', 'ا', 'ب', 'ا'], image: 'images/baba.png', audio: 'sounds/baba.m4a', meaning: 'Dad' },
-    { word: 'تب', letters: ['ت', 'ب'], image: 'images/tab_fever.png', audio: 'sounds/tab_fever.m4a', meaning: 'Fever' },
-    { word: 'باد', letters: ['ب', 'ا', 'د'], image: 'images/bad.png', audio: 'sounds/bad.m4a', meaning: 'Wind' },
-    { word: 'دود', letters: ['د', 'و', 'د'], image: 'images/dud.png', audio: 'sounds/dud.m4a', meaning: 'Smoke' },
-    { word: 'بید', letters: ['ب', 'ی', 'د'], image: 'images/bid.png', audio: 'sounds/bid.m4a', meaning: 'Willow' },
-    { word: 'داد', letters: ['د', 'ا', 'د'], image: 'images/dad.png', audio: 'sounds/dad.m4a', meaning: 'Shout' },
-    { word: 'بد', letters: ['ب', 'د'], image: 'images/bad_adj.png', audio: 'sounds/bad_adj.m4a', meaning: 'Bad' },
-    { word: 'دارو', letters: ['د', 'ا', 'ر', 'و'], image: 'images/daru.png', audio: 'sounds/daru.m4a', meaning: 'Medicine' },
-    { word: 'بذر', letters: ['ب', 'ذ', 'ر'], image: 'images/bazr.png', audio: 'sounds/bazr.m4a', meaning: 'Seed' },
-    { word: 'بار', letters: ['ب', 'ا', 'ر'], image: 'images/bar.png', audio: 'sounds/bar.m4a', meaning: 'Cargo' },
-    { word: 'زرد', letters: ['ز', 'ر', 'د'], image: 'images/zard.png', audio: 'sounds/zard.m4a', meaning: 'Yellow' },
-    { word: 'در', letters: ['د', 'ر'], image: 'images/dar.png', audio: 'sounds/dar.m4a', meaning: 'Door' },
-    { word: 'رود', letters: ['ر', 'و', 'د'], image: 'images/rud.png', audio: 'sounds/rud.m4a', meaning: 'River' },
-    { word: 'بز', letters: ['ب', 'ز'], image: 'images/boz.png', audio: 'sounds/boz.m4a', meaning: 'Goat' },
-    { word: 'رژ', letters: ['ر', 'ژ'], image: 'images/rozh.png', audio: 'sounds/rozh.m4a', meaning: 'Lipstick' },
-    { word: 'روز', letters: ['ر', 'و', 'ز'], image: 'images/ruz.png', audio: 'sounds/ruz.m4a', meaning: 'Day' },
-    { word: 'بازو', letters: ['ب', 'ا', 'ز', 'و'], image: 'images/bazu.png', audio: 'sounds/bazu.m4a', meaning: 'Arm' },
-    { word: 'دیوار', letters: ['د', 'ی', 'و', 'ا', 'ر'], image: 'images/divar.png', audio: 'sounds/divar.m4a', meaning: 'Wall' },
-    { word: 'داور', letters: ['د', 'ا', 'و', 'ر'], image: 'images/davar.png', audio: 'sounds/davar.m4a', meaning: 'Referee' },
-    { word: 'ویزا', letters: ['و', 'ی', 'ز', 'ا'], image: 'images/viza.png', audio: 'sounds/viza.m4a', meaning: 'Visa' },
-    { word: 'ورود', letters: ['و', 'ر', 'و', 'د'], image: 'images/vorud.png', audio: 'sounds/vorud.m4a', meaning: 'Entrance' },
-    { word: 'آواز', letters: ['آ', 'و', 'ا', 'ز'], image: 'images/avaz.png', audio: 'sounds/avaz.m4a', meaning: 'Singing' },
-    { word: 'ثروت', letters: ['ث', 'ر', 'و', 'ت'], image: 'images/servat.png', audio: 'sounds/servat.m4a', meaning: 'Wealth' },
-    { word: 'مادر', letters: ['م', 'ا', 'د', 'ر'], image: 'images/madar.png', audio: 'sounds/madar.m4a', meaning: 'Mother' },
-    { word: 'مو', letters: ['م', 'و'], image: 'images/mu.png', audio: 'sounds/mu.m4a', meaning: 'Hair' },
-    { word: 'میز', letters: ['م', 'ی', 'ز'], image: 'images/miz.png', audio: 'sounds/miz.m4a', meaning: 'Table' },
-    { word: 'مار', letters: ['م', 'ا', 'ر'], image: 'images/mar.png', audio: 'sounds/mar.m4a', meaning: 'Snake' },
-    { word: 'متر', letters: ['م', 'ت', 'ر'], image: 'images/metr.png', audio: 'sounds/metr.m4a', meaning: 'Tape measure' },
-    { word: 'بام', letters: ['ب', 'ا', 'م'], image: 'images/bam.png', audio: 'sounds/bam.m4a', meaning: 'Roof' },
-    { word: 'تیم', letters: ['ت', 'ی', 'م'], image: 'images/tim.png', audio: 'sounds/tim.m4a', meaning: 'Team' },
-    { word: 'بیمار', letters: ['ب', 'ی', 'م', 'ا', 'ر'], image: 'images/bimar.png', audio: 'sounds/bimar.m4a', meaning: 'Sick' },
-    { word: 'مرد', letters: ['م', 'ر', 'د'], image: 'images/mard.png', audio: 'sounds/mard.m4a', meaning: 'Man' },
-    { word: 'دست', letters: ['د', 'س', 'ت'], image: 'images/dast.png', audio: 'sounds/dast.m4a', meaning: 'Hand' },
-    { word: 'سیب', letters: ['س', 'ی', 'ب'], image: 'images/sib.png', audio: 'sounds/sib.m4a', meaning: 'Apple' },
-    { word: 'شیر', letters: ['ش', 'ی', 'ر'], image: 'images/shir.png', audio: 'sounds/shir.m4a', meaning: 'Milk' },
-    { word: 'سر', letters: ['س', 'ر'], image: 'images/sar.png', audio: 'sounds/sar.m4a', meaning: 'Head' },
-    { word: 'آتش', letters: ['آ', 'ت', 'ش'], image: 'images/atash.png', audio: 'sounds/atash.m4a', meaning: 'Fire' },
-    { word: 'سه', letters: ['س', 'ه'], image: 'images/se.png', audio: 'sounds/se.m4a', meaning: 'Three' },
-    { word: 'شش', letters: ['ش', 'ش'], image: 'images/shesh.png', audio: 'sounds/shesh.m4a', meaning: 'Six' },
-    { word: 'شب', letters: ['ش', 'ب'], image: 'images/shab.png', audio: 'sounds/shab.m4a', meaning: 'Night' },
-    { word: 'سبز', letters: ['س', 'ب', 'ز'], image: 'images/sabz.png', audio: 'sounds/sabz.m4a', meaning: 'Green' },
-    { word: 'کتاب', letters: ['ک', 'ت', 'ا', 'ب'], image: 'images/ketab.png', audio: 'sounds/ketab.m4a', meaning: 'Book' },
-    { word: 'سگ', letters: ['س', 'گ'], image: 'images/sag.png', audio: 'sounds/sag.m4a', meaning: 'Dog' },
-    { word: 'گوش', letters: ['گ', 'و', 'ش'], image: 'images/gush.png', audio: 'sounds/gush.m4a', meaning: 'Ear' },
-    { word: 'کمد', letters: ['ک', 'م', 'د'], image: 'images/komod.png', audio: 'sounds/komod.m4a', meaning: 'Closet' },
-    { word: 'کودک', letters: ['ک', 'و', 'د', 'ک'], image: 'images/kudak.png', audio: 'sounds/kudak.m4a', meaning: 'Child' },
-    { word: 'پزشک', letters: ['پ', 'ز', 'ش', 'ک'], image: 'images/pezeshk.png', audio: 'sounds/pezeshk.m4a', meaning: 'Doctor' },
-    { word: 'برگ', letters: ['ب', 'ر', 'گ'], image: 'images/barg.png', audio: 'sounds/barg.m4a', meaning: 'Leaf' },
-    { word: 'دستکش', letters: ['د', 'س', 'ت', 'ک', 'ش'], image: 'images/dastkesh.png', audio: 'sounds/dastkesh.m4a', meaning: 'Gloves' },
-    { word: 'شکر', letters: ['ش', 'ک', 'ر'], image: 'images/shekar.png', audio: 'sounds/shekar.m4a', meaning: 'Sugar' },
-    { word: 'نان', letters: ['ن', 'ا', 'ن'], image: 'images/nan.png', audio: 'sounds/nan.m4a', meaning: 'Bread' },
-    { word: 'زن', letters: ['ز', 'ن'], image: 'images/zan.png', audio: 'sounds/zan.m4a', meaning: 'Woman' },
-    { word: 'ماشین', letters: ['م', 'ا', 'ش', 'ی', 'ن'], image: 'images/mashin.png', audio: 'sounds/mashin.m4a', meaning: 'Car' },
-    { word: 'پنیر', letters: ['پ', 'ن', 'ی', 'ر'], image: 'images/panir.png', audio: 'sounds/panir.m4a', meaning: 'Cheese' },
-    { word: 'دندان', letters: ['د', 'ن', 'د', 'ا', 'ن'], image: 'images/dandan.png', audio: 'sounds/dandan.m4a', meaning: 'Tooth' },
-    { word: 'نمک', letters: ['ن', 'م', 'ک'], image: 'images/namak.png', audio: 'sounds/namak.m4a', meaning: 'Salt' },
-    { word: 'باران', letters: ['ب', 'ا', 'ر', 'ا', 'ن'], image: 'images/baran.png', audio: 'sounds/baran.m4a', meaning: 'Rain' },
-    { word: 'دامن', letters: ['د', 'ا', 'م', 'ن'], image: 'images/daman.png', audio: 'sounds/daman.m4a', meaning: 'Skirt' },
-    { word: 'سنگ', letters: ['س', 'ن', 'گ'], image: 'images/sang.png', audio: 'sounds/sang.m4a', meaning: 'Stone' },
-    { word: 'یک', letters: ['ی', 'ک'], image: 'images/yek.png', audio: 'sounds/yek.m4a', meaning: 'One' },
-    { word: 'پاییز', letters: ['پ', 'ا', 'ی', 'ی', 'ز'], image: 'images/payiz.png', audio: 'sounds/payiz.m4a', meaning: 'Autumn' },
-    { word: 'میدان', letters: ['م', 'ی', 'د', 'ا', 'ن'], image: 'images/meydan.png', audio: 'sounds/meydan.m4a', meaning: 'Square' },
-    { word: 'یاس', letters: ['ی', 'ا', 'س'], image: 'images/yas.png', audio: 'sounds/yas.m4a', meaning: 'Jasmine' },
-    { word: 'پیام', letters: ['پ', 'ی', 'ا', 'م'], image: 'images/payam.png', audio: 'sounds/payam.m4a', meaning: 'Message' },
-    { word: 'لباس', letters: ['ل', 'ب', 'ا', 'س'], image: 'images/lebas.png', audio: 'sounds/lebas.m4a', meaning: 'Clothes' },
-    { word: 'کلاس', letters: ['ک', 'ل', 'ا', 'س'], image: 'images/kelas.png', audio: 'sounds/kelas.m4a', meaning: 'Class' },
-    { word: 'پول', letters: ['پ', 'و', 'ل'], image: 'images/pul.png', audio: 'sounds/pul.m4a', meaning: 'Money' },
-    { word: 'گل', letters: ['گ', 'ل'], image: 'images/gol.png', audio: 'sounds/gol.m4a', meaning: 'Flower' },
-    { word: 'لب', letters: ['ل', 'ب'], image: 'images/lab.png', audio: 'sounds/lab.m4a', meaning: 'Lips' },
-    { word: 'مبل', letters: ['م', 'ب', 'ل'], image: 'images/mobl.png', audio: 'sounds/mobl.m4a', meaning: 'Sofa' },
-    { word: 'لامپ', letters: ['ل', 'ا', 'م', 'پ'], image: 'images/lamp.png', audio: 'sounds/lamp.m4a', meaning: 'Bulb' },
-    { word: 'لیوان', letters: ['ل', 'ی', 'و', 'ا', 'ن'], image: 'images/livan.png', audio: 'sounds/livan.m4a', meaning: 'Glass' },
-    { word: 'سلام', letters: ['س', 'ل', 'ا', 'م'], image: 'images/salam.png', audio: 'sounds/salam.m4a', meaning: 'Hello' },
-    { word: 'خورشید', letters: ['خ', 'و', 'ر', 'ش', 'ی', 'د'], image: 'images/khorshid.png', audio: 'sounds/khorshid.m4a', meaning: 'Sun' },
-    { word: 'چشم', letters: ['چ', 'ش', 'م'], image: 'images/cheshm.png', audio: 'sounds/cheshm.m4a', meaning: 'Eye' },
-    { word: 'چتر', letters: ['چ', 'ت', 'ر'], image: 'images/chatr.png', audio: 'sounds/chatr.m4a', meaning: 'Umbrella' },
-    { word: 'برنج', letters: ['ب', 'ر', 'ن', 'ج'], image: 'images/berenj.png', audio: 'sounds/berenj.m4a', meaning: 'Rice' },
-    { word: 'یخ', letters: ['ی', 'خ'], image: 'images/yakh.png', audio: 'sounds/yakh.m4a', meaning: 'Ice' },
-    { word: 'چای', letters: ['چ', 'ا', 'ی'], image: 'images/chay.png', audio: 'sounds/chay.m4a', meaning: 'Tea' },
-    { word: 'چوب', letters: ['چ', 'و', 'ب'], image: 'images/chub.png', audio: 'sounds/chub.m4a', meaning: 'Wood' },
-    { word: 'پنج', letters: ['پ', 'ن', 'ج'], image: 'images/panj.png', audio: 'sounds/panj.m4a', meaning: 'Five' },
-    { word: 'ساحل', letters: ['س', 'ا', 'ح', 'ل'], image: 'images/sahel.png', audio: 'sounds/sahel.m4a', meaning: 'Beach' },
-    { word: 'ماه', letters: ['م', 'ا', 'ه'], image: 'images/mah.png', audio: 'sounds/mah.m4a', meaning: 'Moon' },
-    { word: 'کوه', letters: ['ک', 'و', 'ه'], image: 'images/kuh.png', audio: 'sounds/kuh.m4a', meaning: 'Mountain' },
-    { word: 'ماهی', letters: ['م', 'ا', 'ه', 'ی'], image: 'images/mahi.png', audio: 'sounds/mahi.m4a', meaning: 'Fish' },
-    { word: 'راه', letters: ['ر', 'ا', 'ه'], image: 'images/rah.png', audio: 'sounds/rah.m4a', meaning: 'Road' },
-    { word: 'آهن', letters: ['آ', 'ه', 'ن'], image: 'images/ahan.png', audio: 'sounds/ahan.m4a', meaning: 'Iron' },
-    { word: 'هوا', letters: ['ه', 'و', 'ا'], image: 'images/hava.png', audio: 'sounds/hava.m4a', meaning: 'Air' },
-    { word: 'چهار', letters: ['چ', 'ه', 'ا', 'ر'], image: 'images/chahar.png', audio: 'sounds/chahar.m4a', meaning: 'Four' },
-    { word: 'هشت', letters: ['ه', 'ش', 'ت'], image: 'images/hasht.png', audio: 'sounds/hasht.m4a', meaning: 'Eight' },
-    { word: 'نه', letters: ['ن', 'ه'], image: 'images/noh.png', audio: 'sounds/noh.m4a', meaning: 'Nine' },
-    { word: 'ده', letters: ['د', 'ه'], image: 'images/dah.png', audio: 'sounds/dah.m4a', meaning: 'Ten' },
-    { word: 'قهوه', letters: ['ق', 'ه', 'و', 'ه'], image: 'images/qahveh.png', audio: 'sounds/qahveh.m4a', meaning: 'Coffee' },
-    { word: 'برف', letters: ['ب', 'ر', 'ف'], image: 'images/barf.png', audio: 'sounds/barf.m4a', meaning: 'Snow' },
-    { word: 'کیف', letters: ['ک', 'ی', 'ف'], image: 'images/kif.png', audio: 'sounds/kif.m4a', meaning: 'Bag' },
-    { word: 'چاقو', letters: ['چ', 'ا', 'ق', 'و'], image: 'images/chaqu.png', audio: 'sounds/chaqu.m4a', meaning: 'Knife' },
-    { word: 'قاشق', letters: ['ق', 'ا', 'ش', 'ق'], image: 'images/qashoq.png', audio: 'sounds/qashoq.m4a', meaning: 'Spoon' },
-    { word: 'اتاق', letters: ['ا', 'ت', 'ا', 'ق'], image: 'images/otaq.png', audio: 'sounds/otaq.m4a', meaning: 'Room' },
-    { word: 'قلب', letters: ['ق', 'ل', 'ب'], image: 'images/qalb.png', audio: 'sounds/qalb.m4a', meaning: 'Heart' },
-    { word: 'هفت', letters: ['ه', 'ف', 'ت'], image: 'images/haft.png', audio: 'sounds/haft.m4a', meaning: 'Seven' },
-    { word: 'قرمز', letters: ['ق', 'ر', 'م', 'ز'], image: 'images/qermez.png', audio: 'sounds/qermez.m4a', meaning: 'Red' },
-    { word: 'صد', letters: ['ص', 'د'], image: 'images/sad.png', audio: 'sounds/sad.m4a', meaning: '100' },
-    { word: 'صورت', letters: ['ص', 'و', 'ر', 'ت'], image: 'images/surat.png', audio: 'sounds/surat.m4a', meaning: 'Face' },
-    { word: 'صفر', letters: ['ص', 'ف', 'ر'], image: 'images/sefr.png', audio: 'sounds/sefr.m4a', meaning: 'Zero' },
-    { word: 'صندلی', letters: ['ص', 'ن', 'د', 'ل', 'ی'], image: 'images/sandali.png', audio: 'sounds/sandali.m4a', meaning: 'Chair' },
-    { word: 'رقص', letters: ['ر', 'ق', 'ص'], image: 'images/raghs.png', audio: 'sounds/raghs.m4a', meaning: 'Dance' },
-    { word: 'قاضی', letters: ['ق', 'ا', 'ض', 'ی'], image: 'images/ghazi.png', audio: 'sounds/ghazi.m4a', meaning: 'Judge' },
-    { word: 'امضا', letters: ['ا', 'م', 'ض', 'ا'], image: 'images/emza.png', audio: 'sounds/emza.m4a', meaning: 'Signature' },
-    { word: 'مریض', letters: ['م', 'ر', 'ی', 'ض'], image: 'images/mariz.png', audio: 'sounds/mariz.m4a', meaning: 'Sick' },
-    { word: 'صابون', letters: ['ص', 'ا', 'ب', 'و', 'ن'], image: 'images/sabun.png', audio: 'sounds/sabun.m4a', meaning: 'Soap' },
-    { word: 'عکس', letters: ['ع', 'ک', 'س'], image: 'images/aks.png', audio: 'sounds/aks.m4a', meaning: 'Photo' },
-    { word: 'ساعت', letters: ['س', 'ا', 'ع', 'ت'], image: 'images/saat.png', audio: 'sounds/saat.m4a', meaning: 'Clock' },
-    { word: 'عینک', letters: ['ع', 'ی', 'ن', 'ک'], image: 'images/eynak.png', audio: 'sounds/eynak.m4a', meaning: 'Glasses' },
-    { word: 'غذا', letters: ['غ', 'ذ', 'ا'], image: 'images/ghaza.png', audio: 'sounds/ghaza.m4a', meaning: 'Food' },
-    { word: 'مرغ', letters: ['م', 'ر', 'غ'], image: 'images/morgh.png', audio: 'sounds/morgh.m4a', meaning: 'Chicken' },
-    { word: 'شمع', letters: ['ش', 'م', 'ع'], image: 'images/sham.png', audio: 'sounds/sham.m4a', meaning: 'Candle' },
-    { word: 'جغد', letters: ['ج', 'غ', 'د'], image: 'images/joghd.png', audio: 'sounds/joghd.m4a', meaning: 'Owl' },
-    { word: 'باغ', letters: ['ب', 'ا', 'غ'], image: 'images/bagh.png', audio: 'sounds/bagh.m4a', meaning: 'Garden' },
-    { word: 'عشق', letters: ['ع', 'ش', 'ق'], image: 'images/eshgh.png', audio: 'sounds/eshgh.m4a', meaning: 'Love' },
-    { word: 'قطار', letters: ['ق', 'ط', 'ا', 'ر'], image: 'images/ghatar.png', audio: 'sounds/ghatar.m4a', meaning: 'Train' },
-    { word: 'ظرف', letters: ['ظ', 'ر', 'ف'], image: 'images/zarf.png', audio: 'sounds/zarf.m4a', meaning: 'Dishes' },
-    { word: 'طناب', letters: ['ط', 'ن', 'ا', 'ب'], image: 'images/tanab.png', audio: 'sounds/tanab.m4a', meaning: 'Rope' },
-    { word: 'خط', letters: ['خ', 'ط'], image: 'images/khat.png', audio: 'sounds/khat.m4a', meaning: 'Line' },
-    { word: 'خطر', letters: ['خ', 'ط', 'ر'], image: 'images/khatar.png', audio: 'sounds/khatar.m4a', meaning: 'Danger' },
-    { word: 'طوطی', letters: ['ط', 'و', 'ط', 'ی'], image: 'images/tuti.png', audio: 'sounds/tuti.m4a', meaning: 'Parrot' },
-    { word: 'عطر', letters: ['ع', 'ط', 'ر'], image: 'images/atr.png', audio: 'sounds/atr.m4a', meaning: 'Perfume' },
-    { word: 'قطره', letters: ['ق', 'ط', 'ر', 'ه'], image: 'images/ghatreh.png', audio: 'sounds/ghatreh.m4a', meaning: 'Drop' },
-    { word: 'خداحافظ', letters: ['خ', 'د', 'ا', 'ح', 'ا', 'ف', 'ظ'], image: 'images/khodahafez.png', audio: 'sounds/khodahafez.m4a', meaning: 'Goodbye' },
-    { word: 'مربّع', letters: ['م', 'ر', 'ب', 'ّ', 'ع'], image: 'images/moraba.png', audio: 'sounds/moraba.m4a', meaning: 'Square' },
-    { word: 'قلّک', letters: ['ق', 'ل', 'ّ', 'ک'], image: 'images/ghollak.png', audio: 'sounds/ghollak.m4a', meaning: 'Piggy Bank' },
-    { word: 'نقّاش', letters: ['ن', 'ق', 'ّ', 'ا', 'ش'], image: 'images/naghash.png', audio: 'sounds/naghash.m4a', meaning: 'Painter' },
-    { word: 'نجّار', letters: ['ن', 'ج', 'ّ', 'ا', 'ر'], image: 'images/najjar.png', audio: 'sounds/najjar.m4a', meaning: 'Carpenter' },
-    { word: 'معلّم', letters: ['م', 'ع', 'ل', 'ّ', 'م'], image: 'images/moallem.png', audio: 'sounds/moallem.m4a', meaning: 'Teacher' },
-    { word: 'خواهر', letters: ['خ', 'و', 'ا', 'ه', 'ر'], image: 'images/khahar.png', audio: 'sounds/khahar.m4a', meaning: 'Sister' },
-    { word: 'خواب', letters: ['خ', 'و', 'ا', 'ب'], image: 'images/khab.png', audio: 'sounds/khab.m4a', meaning: 'Sleep' },
-    { word: 'خواننده', letters: ['خ', 'و', 'ا', 'ن', 'ن', 'د', 'ه'], image: 'images/khanandeh.png', audio: 'sounds/khanandeh.m4a', meaning: 'Singer' },
-    { word: 'استخوان', letters: ['ا', 'س', 'ت', 'خ', 'و', 'ا', 'ن'], image: 'images/ostekhan.png', audio: 'sounds/ostekhan.m4a', meaning: 'Bone' }
+    { lesson: 1, word: 'آب', letters: ['آ', 'ب'], image: 'images/ab.png', audio: 'sounds/ab.m4a', meaning: 'Water' },
+    { lesson: 1, word: 'توپ', letters: ['ت', 'و', 'پ'], image: 'images/tup.png', audio: 'sounds/tup.m4a', meaning: 'Ball' },
+    { lesson: 1, word: 'پا', letters: ['پ', 'ا'], image: 'images/pa.png', audio: 'sounds/pa.m4a', meaning: 'Foot' },
+    { lesson: 1, word: 'پتو', letters: ['پ', 'ت', 'و'], image: 'images/patu.png', audio: 'sounds/patu.m4a', meaning: 'Blanket' },
+    { lesson: 1, word: 'توت', letters: ['ت', 'و', 'ت'], image: 'images/tut.png', audio: 'sounds/tut.m4a', meaning: 'Mulberry' },
+    { lesson: 1, word: 'تاب', letters: ['ت', 'ا', 'ب'], image: 'images/tab.png', audio: 'sounds/tab.m4a', meaning: 'Swing' },
+    { lesson: 1, word: 'بابا', letters: ['ب', 'ا', 'ب', 'ا'], image: 'images/baba.png', audio: 'sounds/baba.m4a', meaning: 'Dad' },
+    { lesson: 1, word: 'تب', letters: ['ت', 'ب'], image: 'images/tab_fever.png', audio: 'sounds/tab_fever.m4a', meaning: 'Fever' },
+    { lesson: 2, word: 'باد', letters: ['ب', 'ا', 'د'], image: 'images/bad.png', audio: 'sounds/bad.m4a', meaning: 'Wind' },
+    { lesson: 2, word: 'دود', letters: ['د', 'و', 'د'], image: 'images/dud.png', audio: 'sounds/dud.m4a', meaning: 'Smoke' },
+    { lesson: 2, word: 'بید', letters: ['ب', 'ی', 'د'], image: 'images/bid.png', audio: 'sounds/bid.m4a', meaning: 'Willow' },
+    { lesson: 2, word: 'داد', letters: ['د', 'ا', 'د'], image: 'images/dad.png', audio: 'sounds/dad.m4a', meaning: 'Shout' },
+    { lesson: 2, word: 'بد', letters: ['ب', 'د'], image: 'images/bad_adj.png', audio: 'sounds/bad_adj.m4a', meaning: 'Bad' },
+    { lesson: 2, word: 'بار', letters: ['ب', 'ا', 'ر'], image: 'images/bar.png', audio: 'sounds/bar.m4a', meaning: 'Cargo' },
+    { lesson: 2, word: 'زرد', letters: ['ز', 'ر', 'د'], image: 'images/zard.png', audio: 'sounds/zard.m4a', meaning: 'Yellow' },
+    { lesson: 2, word: 'در', letters: ['د', 'ر'], image: 'images/dar.png', audio: 'sounds/dar.m4a', meaning: 'Door' },
+    { lesson: 2, word: 'رود', letters: ['ر', 'و', 'د'], image: 'images/rud.png', audio: 'sounds/rud.m4a', meaning: 'River' },
+    { lesson: 2, word: 'بز', letters: ['ب', 'ز'], image: 'images/boz.png', audio: 'sounds/boz.m4a', meaning: 'Goat' },
+    { lesson: 2, word: 'رژ', letters: ['ر', 'ژ'], image: 'images/rozh.png', audio: 'sounds/rozh.m4a', meaning: 'Lipstick' },
+    { lesson: 2, word: 'روز', letters: ['ر', 'و', 'ز'], image: 'images/ruz.png', audio: 'sounds/ruz.m4a', meaning: 'Day' },
+    { lesson: 2, word: 'بازو', letters: ['ب', 'ا', 'ز', 'و'], image: 'images/bazu.png', audio: 'sounds/bazu.m4a', meaning: 'Arm' },
+    { lesson: 2, word: 'دارو', letters: ['د', 'ا', 'ر', 'و'], image: 'images/daru.png', audio: 'sounds/daru.m4a', meaning: 'Medicine' },
+    { lesson: 2, word: 'بذر', letters: ['ب', 'ذ', 'ر'], image: 'images/bazr.png', audio: 'sounds/bazr.m4a', meaning: 'Seed' },
+    { lesson: 2, word: 'دیوار', letters: ['د', 'ی', 'و', 'ا', 'ر'], image: 'images/divar.png', audio: 'sounds/divar.m4a', meaning: 'Wall' },
+    { lesson: 2, word: 'داور', letters: ['د', 'ا', 'و', 'ر'], image: 'images/davar.png', audio: 'sounds/davar.m4a', meaning: 'Referee' },
+    { lesson: 2, word: 'ویزا', letters: ['و', 'ی', 'ز', 'ا'], image: 'images/viza.png', audio: 'sounds/viza.m4a', meaning: 'Visa' },
+    { lesson: 2, word: 'ورود', letters: ['و', 'ر', 'و', 'د'], image: 'images/vorud.png', audio: 'sounds/vorud.m4a', meaning: 'Entrance' },
+    { lesson: 2, word: 'آواز', letters: ['آ', 'و', 'ا', 'ز'], image: 'images/avaz.png', audio: 'sounds/avaz.m4a', meaning: 'Singing' },
+    { lesson: 2, word: 'ثروت', letters: ['ث', 'ر', 'و', 'ت'], image: 'images/servat.png', audio: 'sounds/servat.m4a', meaning: 'Wealth' },
+    { lesson: 2, word: 'مادر', letters: ['م', 'ا', 'د', 'ر'], image: 'images/madar.png', audio: 'sounds/madar.m4a', meaning: 'Mother' },
+    { lesson: 2, word: 'مو', letters: ['م', 'و'], image: 'images/mu.png', audio: 'sounds/mu.m4a', meaning: 'Hair' },
+    { lesson: 2, word: 'میز', letters: ['م', 'ی', 'ز'], image: 'images/miz.png', audio: 'sounds/miz.m4a', meaning: 'Table' },
+    { lesson: 2, word: 'مار', letters: ['م', 'ا', 'ر'], image: 'images/mar.png', audio: 'sounds/mar.m4a', meaning: 'Snake' },
+    { lesson: 2, word: 'متر', letters: ['م', 'ت', 'ر'], image: 'images/metr.png', audio: 'sounds/metr.m4a', meaning: 'Tape measure' },
+    { lesson: 2, word: 'بام', letters: ['ب', 'ا', 'م'], image: 'images/bam.png', audio: 'sounds/bam.m4a', meaning: 'Roof' },
+    { lesson: 2, word: 'تیم', letters: ['ت', 'ی', 'م'], image: 'images/tim.png', audio: 'sounds/tim.m4a', meaning: 'Team' },
+    { lesson: 2, word: 'بیمار', letters: ['ب', 'ی', 'م', 'ا', 'ر'], image: 'images/bimar.png', audio: 'sounds/bimar.m4a', meaning: 'Sick' },
+    { lesson: 2, word: 'مرد', letters: ['م', 'ر', 'د'], image: 'images/mard.png', audio: 'sounds/mard.m4a', meaning: 'Man' },
+    { lesson: 3, word: 'دست', letters: ['د', 'س', 'ت'], image: 'images/dast.png', audio: 'sounds/dast.m4a', meaning: 'Hand' },
+    { lesson: 3, word: 'سیب', letters: ['س', 'ی', 'ب'], image: 'images/sib.png', audio: 'sounds/sib.m4a', meaning: 'Apple' },
+    { lesson: 3, word: 'شیر', letters: ['ش', 'ی', 'ر'], image: 'images/shir.png', audio: 'sounds/shir.m4a', meaning: 'Milk' },
+    { lesson: 3, word: 'سر', letters: ['س', 'ر'], image: 'images/sar.png', audio: 'sounds/sar.m4a', meaning: 'Head' },
+    { lesson: 3, word: 'آتش', letters: ['آ', 'ت', 'ش'], image: 'images/atash.png', audio: 'sounds/atash.m4a', meaning: 'Fire' },
+    { lesson: 3, word: 'سه', letters: ['س', 'ه'], image: 'images/se.png', audio: 'sounds/se.m4a', meaning: 'Three' },
+    { lesson: 3, word: 'شش', letters: ['ش', 'ش'], image: 'images/shesh.png', audio: 'sounds/shesh.m4a', meaning: 'Six' },
+    { lesson: 3, word: 'شب', letters: ['ش', 'ب'], image: 'images/shab.png', audio: 'sounds/shab.m4a', meaning: 'Night' },
+    { lesson: 3, word: 'سبز', letters: ['س', 'ب', 'ز'], image: 'images/sabz.png', audio: 'sounds/sabz.m4a', meaning: 'Green' },
+    { lesson: 3, word: 'کتاب', letters: ['ک', 'ت', 'ا', 'ب'], image: 'images/ketab.png', audio: 'sounds/ketab.m4a', meaning: 'Book' },
+    { lesson: 3, word: 'سگ', letters: ['س', 'گ'], image: 'images/sag.png', audio: 'sounds/sag.m4a', meaning: 'Dog' },
+    { lesson: 3, word: 'گوش', letters: ['گ', 'و', 'ش'], image: 'images/gush.png', audio: 'sounds/gush.m4a', meaning: 'Ear' },
+    { lesson: 3, word: 'کمد', letters: ['ک', 'م', 'د'], image: 'images/komod.png', audio: 'sounds/komod.m4a', meaning: 'Closet' },
+    { lesson: 3, word: 'کودک', letters: ['ک', 'و', 'د', 'ک'], image: 'images/kudak.png', audio: 'sounds/kudak.m4a', meaning: 'Child' },
+    { lesson: 3, word: 'پزشک', letters: ['پ', 'ز', 'ش', 'ک'], image: 'images/pezeshk.png', audio: 'sounds/pezeshk.m4a', meaning: 'Doctor' },
+    { lesson: 3, word: 'برگ', letters: ['ب', 'ر', 'گ'], image: 'images/barg.png', audio: 'sounds/barg.m4a', meaning: 'Leaf' },
+    { lesson: 3, word: 'دستکش', letters: ['د', 'س', 'ت', 'ک', 'ش'], image: 'images/dastkesh.png', audio: 'sounds/dastkesh.m4a', meaning: 'Gloves' },
+    { lesson: 3, word: 'شکر', letters: ['ش', 'ک', 'ر'], image: 'images/shekar.png', audio: 'sounds/shekar.m4a', meaning: 'Sugar' },
+    { lesson: 3, word: 'نان', letters: ['ن', 'ا', 'ن'], image: 'images/nan.png', audio: 'sounds/nan.m4a', meaning: 'Bread' },
+    { lesson: 3, word: 'زن', letters: ['ز', 'ن'], image: 'images/zan.png', audio: 'sounds/zan.m4a', meaning: 'Woman' },
+    { lesson: 3, word: 'ماشین', letters: ['م', 'ا', 'ش', 'ی', 'ن'], image: 'images/mashin.png', audio: 'sounds/mashin.m4a', meaning: 'Car' },
+    { lesson: 3, word: 'پنیر', letters: ['پ', 'ن', 'ی', 'ر'], image: 'images/panir.png', audio: 'sounds/panir.m4a', meaning: 'Cheese' },
+    { lesson: 3, word: 'دندان', letters: ['د', 'ن', 'د', 'ا', 'ن'], image: 'images/dandan.png', audio: 'sounds/dandan.m4a', meaning: 'Tooth' },
+    { lesson: 3, word: 'نمک', letters: ['ن', 'م', 'ک'], image: 'images/namak.png', audio: 'sounds/namak.m4a', meaning: 'Salt' },
+    { lesson: 3, word: 'باران', letters: ['ب', 'ا', 'ر', 'ا', 'ن'], image: 'images/baran.png', audio: 'sounds/baran.m4a', meaning: 'Rain' },
+    { lesson: 3, word: 'دامن', letters: ['د', 'ا', 'م', 'ن'], image: 'images/daman.png', audio: 'sounds/daman.m4a', meaning: 'Skirt' },
+    { lesson: 3, word: 'سنگ', letters: ['س', 'ن', 'گ'], image: 'images/sang.png', audio: 'sounds/sang.m4a', meaning: 'Stone' },
+    { lesson: 4, word: 'یک', letters: ['ی', 'ک'], image: 'images/yek.png', audio: 'sounds/yek.m4a', meaning: 'One' },
+    { lesson: 4, word: 'پاییز', letters: ['پ', 'ا', 'ی', 'ی', 'ز'], image: 'images/payiz.png', audio: 'sounds/payiz.m4a', meaning: 'Autumn' },
+    { lesson: 4, word: 'میدان', letters: ['م', 'ی', 'د', 'ا', 'ن'], image: 'images/meydan.png', audio: 'sounds/meydan.m4a', meaning: 'Square' },
+    { lesson: 4, word: 'یاس', letters: ['ی', 'ا', 'س'], image: 'images/yas.png', audio: 'sounds/yas.m4a', meaning: 'Jasmine' },
+    { lesson: 4, word: 'پیام', letters: ['پ', 'ی', 'ا', 'م'], image: 'images/payam.png', audio: 'sounds/payam.m4a', meaning: 'Message' },
+    { lesson: 4, word: 'لباس', letters: ['ل', 'ب', 'ا', 'س'], image: 'images/lebas.png', audio: 'sounds/lebas.m4a', meaning: 'Clothes' },
+    { lesson: 4, word: 'کلاس', letters: ['ک', 'ل', 'ا', 'س'], image: 'images/kelas.png', audio: 'sounds/kelas.m4a', meaning: 'Class' },
+    { lesson: 4, word: 'پول', letters: ['پ', 'و', 'ل'], image: 'images/pul.png', audio: 'sounds/pul.m4a', meaning: 'Money' },
+    { lesson: 4, word: 'گل', letters: ['گ', 'ل'], image: 'images/gol.png', audio: 'sounds/gol.m4a', meaning: 'Flower' },
+    { lesson: 4, word: 'لب', letters: ['ل', 'ب'], image: 'images/lab.png', audio: 'sounds/lab.m4a', meaning: 'Lips' },
+    { lesson: 4, word: 'مبل', letters: ['م', 'ب', 'ل'], image: 'images/mobl.png', audio: 'sounds/mobl.m4a', meaning: 'Sofa' },
+    { lesson: 4, word: 'لامپ', letters: ['ل', 'ا', 'م', 'پ'], image: 'images/lamp.png', audio: 'sounds/lamp.m4a', meaning: 'Bulb' },
+    { lesson: 4, word: 'لیوان', letters: ['ل', 'ی', 'و', 'ا', 'ن'], image: 'images/livan.png', audio: 'sounds/livan.m4a', meaning: 'Glass' },
+    { lesson: 4, word: 'سلام', letters: ['س', 'ل', 'ا', 'م'], image: 'images/salam.png', audio: 'sounds/salam.m4a', meaning: 'Hello' },
+    { lesson: 4, word: 'خورشید', letters: ['خ', 'و', 'ر', 'ش', 'ی', 'د'], image: 'images/khorshid.png', audio: 'sounds/khorshid.m4a', meaning: 'Sun' },
+    { lesson: 4, word: 'چشم', letters: ['چ', 'ش', 'م'], image: 'images/cheshm.png', audio: 'sounds/cheshm.m4a', meaning: 'Eye' },
+    { lesson: 4, word: 'چتر', letters: ['چ', 'ت', 'ر'], image: 'images/chatr.png', audio: 'sounds/chatr.m4a', meaning: 'Umbrella' },
+    { lesson: 4, word: 'برنج', letters: ['ب', 'ر', 'ن', 'ج'], image: 'images/berenj.png', audio: 'sounds/berenj.m4a', meaning: 'Rice' },
+    { lesson: 4, word: 'یخ', letters: ['ی', 'خ'], image: 'images/yakh.png', audio: 'sounds/yakh.m4a', meaning: 'Ice' },
+    { lesson: 4, word: 'چای', letters: ['چ', 'ا', 'ی'], image: 'images/chay.png', audio: 'sounds/chay.m4a', meaning: 'Tea' },
+    { lesson: 4, word: 'چوب', letters: ['چ', 'و', 'ب'], image: 'images/chub.png', audio: 'sounds/chub.m4a', meaning: 'Wood' },
+    { lesson: 4, word: 'پنج', letters: ['پ', 'ن', 'ج'], image: 'images/panj.png', audio: 'sounds/panj.m4a', meaning: 'Five' },
+    { lesson: 4, word: 'ساحل', letters: ['س', 'ا', 'ح', 'ل'], image: 'images/sahel.png', audio: 'sounds/sahel.m4a', meaning: 'Beach' },
+    { lesson: 4, word: 'ماه', letters: ['م', 'ا', 'ه'], image: 'images/mah.png', audio: 'sounds/mah.m4a', meaning: 'Moon' },
+    { lesson: 4, word: 'کوه', letters: ['ک', 'و', 'ه'], image: 'images/kuh.png', audio: 'sounds/kuh.m4a', meaning: 'Mountain' },
+    { lesson: 4, word: 'ماهی', letters: ['م', 'ا', 'ه', 'ی'], image: 'images/mahi.png', audio: 'sounds/mahi.m4a', meaning: 'Fish' },
+    { lesson: 4, word: 'راه', letters: ['ر', 'ا', 'ه'], image: 'images/rah.png', audio: 'sounds/rah.m4a', meaning: 'Road' },
+    { lesson: 4, word: 'آهن', letters: ['آ', 'ه', 'ن'], image: 'images/ahan.png', audio: 'sounds/ahan.m4a', meaning: 'Iron' },
+    { lesson: 4, word: 'هوا', letters: ['ه', 'و', 'ا'], image: 'images/hava.png', audio: 'sounds/hava.m4a', meaning: 'Air' },
+    { lesson: 4, word: 'چهار', letters: ['چ', 'ه', 'ا', 'ر'], image: 'images/chahar.png', audio: 'sounds/chahar.m4a', meaning: 'Four' },
+    { lesson: 4, word: 'هشت', letters: ['ه', 'ش', 'ت'], image: 'images/hasht.png', audio: 'sounds/hasht.m4a', meaning: 'Eight' },
+    { lesson: 4, word: 'نه', letters: ['ن', 'ه'], image: 'images/noh.png', audio: 'sounds/noh.m4a', meaning: 'Nine' },
+    { lesson: 4, word: 'ده', letters: ['د', 'ه'], image: 'images/dah.png', audio: 'sounds/dah.m4a', meaning: 'Ten' },
+    { lesson: 5, word: 'قهوه', letters: ['ق', 'ه', 'و', 'ه'], image: 'images/qahveh.png', audio: 'sounds/qahveh.m4a', meaning: 'Coffee' },
+    { lesson: 5, word: 'برف', letters: ['ب', 'ر', 'ف'], image: 'images/barf.png', audio: 'sounds/barf.m4a', meaning: 'Snow' },
+    { lesson: 5, word: 'کیف', letters: ['ک', 'ی', 'ف'], image: 'images/kif.png', audio: 'sounds/kif.m4a', meaning: 'Bag' },
+    { lesson: 5, word: 'چاقو', letters: ['چ', 'ا', 'ق', 'و'], image: 'images/chaqu.png', audio: 'sounds/chaqu.m4a', meaning: 'Knife' },
+    { lesson: 5, word: 'قاشق', letters: ['ق', 'ا', 'ش', 'ق'], image: 'images/qashoq.png', audio: 'sounds/qashoq.m4a', meaning: 'Spoon' },
+    { lesson: 5, word: 'اتاق', letters: ['ا', 'ت', 'ا', 'ق'], image: 'images/otaq.png', audio: 'sounds/otaq.m4a', meaning: 'Room' },
+    { lesson: 5, word: 'قلب', letters: ['ق', 'ل', 'ب'], image: 'images/qalb.png', audio: 'sounds/qalb.m4a', meaning: 'Heart' },
+    { lesson: 5, word: 'هفت', letters: ['ه', 'ف', 'ت'], image: 'images/haft.png', audio: 'sounds/haft.m4a', meaning: 'Seven' },
+    { lesson: 5, word: 'قرمز', letters: ['ق', 'ر', 'م', 'ز'], image: 'images/qermez.png', audio: 'sounds/qermez.m4a', meaning: 'Red' },
+    { lesson: 5, word: 'صد', letters: ['ص', 'د'], image: 'images/sad.png', audio: 'sounds/sad.m4a', meaning: '100' },
+    { lesson: 5, word: 'صورت', letters: ['ص', 'و', 'ر', 'ت'], image: 'images/surat.png', audio: 'sounds/surat.m4a', meaning: 'Face' },
+    { lesson: 5, word: 'صفر', letters: ['ص', 'ف', 'ر'], image: 'images/sefr.png', audio: 'sounds/sefr.m4a', meaning: 'Zero' },
+    { lesson: 5, word: 'صندلی', letters: ['ص', 'ن', 'د', 'ل', 'ی'], image: 'images/sandali.png', audio: 'sounds/sandali.m4a', meaning: 'Chair' },
+    { lesson: 5, word: 'رقص', letters: ['ر', 'ق', 'ص'], image: 'images/raghs.png', audio: 'sounds/raghs.m4a', meaning: 'Dance' },
+    { lesson: 5, word: 'قاضی', letters: ['ق', 'ا', 'ض', 'ی'], image: 'images/ghazi.png', audio: 'sounds/ghazi.m4a', meaning: 'Judge' },
+    { lesson: 5, word: 'امضا', letters: ['ا', 'م', 'ض', 'ا'], image: 'images/emza.png', audio: 'sounds/emza.m4a', meaning: 'Signature' },
+    { lesson: 5, word: 'مریض', letters: ['م', 'ر', 'ی', 'ض'], image: 'images/mariz.png', audio: 'sounds/mariz.m4a', meaning: 'Sick' },
+    { lesson: 5, word: 'صابون', letters: ['ص', 'ا', 'ب', 'و', 'ن'], image: 'images/sabun.png', audio: 'sounds/sabun.m4a', meaning: 'Soap' },
+    { lesson: 5, word: 'عکس', letters: ['ع', 'ک', 'س'], image: 'images/aks.png', audio: 'sounds/aks.m4a', meaning: 'Photo' },
+    { lesson: 5, word: 'ساعت', letters: ['س', 'ا', 'ع', 'ت'], image: 'images/saat.png', audio: 'sounds/saat.m4a', meaning: 'Clock' },
+    { lesson: 5, word: 'عینک', letters: ['ع', 'ی', 'ن', 'ک'], image: 'images/eynak.png', audio: 'sounds/eynak.m4a', meaning: 'Glasses' },
+    { lesson: 5, word: 'غذا', letters: ['غ', 'ذ', 'ا'], image: 'images/ghaza.png', audio: 'sounds/ghaza.m4a', meaning: 'Food' },
+    { lesson: 5, word: 'مرغ', letters: ['م', 'ر', 'غ'], image: 'images/morgh.png', audio: 'sounds/morgh.m4a', meaning: 'Chicken' },
+    { lesson: 5, word: 'شمع', letters: ['ش', 'م', 'ع'], image: 'images/sham.png', audio: 'sounds/sham.m4a', meaning: 'Candle' },
+    { lesson: 5, word: 'جغد', letters: ['ج', 'غ', 'د'], image: 'images/joghd.png', audio: 'sounds/joghd.m4a', meaning: 'Owl' },
+    { lesson: 5, word: 'باغ', letters: ['ب', 'ا', 'غ'], image: 'images/bagh.png', audio: 'sounds/bagh.m4a', meaning: 'Garden' },
+    { lesson: 5, word: 'عشق', letters: ['ع', 'ش', 'ق'], image: 'images/eshgh.png', audio: 'sounds/eshgh.m4a', meaning: 'Love' },
+    { lesson: 5, word: 'قطار', letters: ['ق', 'ط', 'ا', 'ر'], image: 'images/ghatar.png', audio: 'sounds/ghatar.m4a', meaning: 'Train' },
+    { lesson: 5, word: 'ظرف', letters: ['ظ', 'ر', 'ف'], image: 'images/zarf.png', audio: 'sounds/zarf.m4a', meaning: 'Dishes' },
+    { lesson: 5, word: 'طناب', letters: ['ط', 'ن', 'ا', 'ب'], image: 'images/tanab.png', audio: 'sounds/tanab.m4a', meaning: 'Rope' },
+    { lesson: 5, word: 'خط', letters: ['خ', 'ط'], image: 'images/khat.png', audio: 'sounds/khat.m4a', meaning: 'Line' },
+    { lesson: 5, word: 'خطر', letters: ['خ', 'ط', 'ر'], image: 'images/khatar.png', audio: 'sounds/khatar.m4a', meaning: 'Danger' },
+    { lesson: 5, word: 'طوطی', letters: ['ط', 'و', 'ط', 'ی'], image: 'images/tuti.png', audio: 'sounds/tuti.m4a', meaning: 'Parrot' },
+    { lesson: 5, word: 'عطر', letters: ['ع', 'ط', 'ر'], image: 'images/atr.png', audio: 'sounds/atr.m4a', meaning: 'Perfume' },
+    { lesson: 5, word: 'قطره', letters: ['ق', 'ط', 'ر', 'ه'], image: 'images/ghatreh.png', audio: 'sounds/ghatreh.m4a', meaning: 'Drop' },
+    { lesson: 5, word: 'خداحافظ', letters: ['خ', 'د', 'ا', 'ح', 'ا', 'ف', 'ظ'], image: 'images/khodahafez.png', audio: 'sounds/khodahafez.m4a', meaning: 'Goodbye' },
+    { lesson: 5, word: 'مربّع', letters: ['م', 'ر', 'ب', 'ّ', 'ع'], image: 'images/moraba.png', audio: 'sounds/moraba.m4a', meaning: 'Square' },
+    { lesson: 5, word: 'قلّک', letters: ['ق', 'ل', 'ّ', 'ک'], image: 'images/ghollak.png', audio: 'sounds/ghollak.m4a', meaning: 'Piggy Bank' },
+    { lesson: 5, word: 'نقّاش', letters: ['ن', 'ق', 'ّ', 'ا', 'ش'], image: 'images/naghash.png', audio: 'sounds/naghash.m4a', meaning: 'Painter' },
+    { lesson: 5, word: 'نجّار', letters: ['ن', 'ج', 'ّ', 'ا', 'ر'], image: 'images/najjar.png', audio: 'sounds/najjar.m4a', meaning: 'Carpenter' },
+    { lesson: 5, word: 'معلّم', letters: ['م', 'ع', 'ل', 'ّ', 'م'], image: 'images/moallem.png', audio: 'sounds/moallem.m4a', meaning: 'Teacher' },
+    { lesson: 5, word: 'خواهر', letters: ['خ', 'و', 'ا', 'ه', 'ر'], image: 'images/khahar.png', audio: 'sounds/khahar.m4a', meaning: 'Sister' },
+    { lesson: 5, word: 'خواب', letters: ['خ', 'و', 'ا', 'ب'], image: 'images/khab.png', audio: 'sounds/khab.m4a', meaning: 'Sleep' },
+    { lesson: 5, word: 'خواننده', letters: ['خ', 'و', 'ا', 'ن', 'ن', 'د', 'ه'], image: 'images/khanandeh.png', audio: 'sounds/khanandeh.m4a', meaning: 'Singer' },
+    { lesson: 5, word: 'استخوان', letters: ['ا', 'س', 'ت', 'خ', 'و', 'ا', 'ن'], image: 'images/ostekhan.png', audio: 'sounds/ostekhan.m4a', meaning: 'Bone' }
   ];
+
+  /* ====== Lessons & access ====== */
+  const LESSON_NUMBERS = [1, 2, 3, 4, 5];
+  const FREE_LESSON = 1;
+  const UNLOCK_CODE = '137676fa';
+  const STORAGE_KEY = 'learnPersian.lessonsUnlocked';
+  const MODE_NAMES = { 1: 'Letter Puzzle', 2: 'Correct Spelling', 3: 'Word & Image Match' };
+
+  const wordsOfLesson = n => levels.filter(l => l.lesson === n);
+
+  function readUnlocked() {
+    try { return localStorage.getItem(STORAGE_KEY) === '1'; } catch (_) { return false; }
+  }
+  function saveUnlocked() {
+    try { localStorage.setItem(STORAGE_KEY, '1'); } catch (_) { /* private mode: stays unlocked for this visit only */ }
+  }
+  let lessonsUnlocked = readUnlocked();
+  const isLessonOpen = n => n === FREE_LESSON || lessonsUnlocked;
+
+  /* ====== Letter forms (initial/medial vs final/isolated) ====== */
+  const TATWEEL = 'ـ';
+  const SHADDA = 'ّ';
+  // Letters that never connect to the NEXT letter: they only have one shape.
+  const NON_JOINING = new Set(['ا', 'آ', 'د', 'ذ', 'ر', 'ز', 'ژ', 'و']);
+
+  // For each square: the exact text the correct tile must show.
+  //  - a joining letter that has a letter after it  -> connected form with a tail (بـ)
+  //  - the last letter, or a non-joining letter     -> plain form (ب, ا, د ...)
+  //  - the shadda (tashdid) keeps its own tile, drawn on a tatweel so it is visible
+  function expectedForms(letters) {
+    return letters.map((ch, i) => {
+      if (ch === SHADDA) return TATWEEL + SHADDA;
+      if (NON_JOINING.has(ch)) return ch;
+      const hasNext = letters.slice(i + 1).some(c => c !== SHADDA);
+      return hasNext ? ch + TATWEEL : ch;
+    });
+  }
 
   /* ====== Auto-distractors: visually similar letters ====== */
   // Groups of letters that look alike (same body shape, different dots / strokes).
-  // Together they cover all 32 Persian letters; a letter may belong to more than one group.
   const LOOKALIKE_GROUPS = [
     ['ب', 'پ', 'ت', 'ث', 'ن', 'ی'],   // the "tooth" shape, differing only in dots
     ['ج', 'چ', 'ح', 'خ'],
@@ -899,326 +1105,9 @@
   }
 
   levels.forEach(lv => {
-    lv.distractors = makeDistractors(lv.letters);
+    lv.forms = expectedForms(lv.letters);
     if (lv.letters.join('') !== lv.word) console.warn('Letters do not spell the word:', lv.word, lv.letters);
   });
 
   /* ====== Misspellings (mode 2 distractors) ====== */
-  // Returns `count` believable FAKE spellings of `word`, each differing by one letter:
-  //  1) swap a letter for a homophone (e.g. جغد -> جقد),
-  //  2) if there are not enough, swap a letter for a visual look-alike (e.g. جغد -> جغذ).
-  // Candidates come round-robin from different letters of the word, so the mistakes land in
-  // different places. A candidate is never the word itself, never a duplicate, and never a
-  // real word from `levels`.
-  function makeMisspellings(word, count = 2) {
-    const chars = Array.from(word);
-    const realWords = new Set(levels.map(l => l.word));
-    const seen = new Set([word]);
-    const out = [];
-    const variant = (i, c) => { const a = chars.slice(); a[i] = c; return a.join(''); };
-    const usable = v => !seen.has(v) && !realWords.has(v);
-
-    // one shuffled queue of candidate spellings per letter position
-    const queues = options => shuffle(chars.map((_, i) => i))
-      .map(i => shuffle(options(chars[i]).map(c => variant(i, c))));
-
-    const drain = qs => {
-      while (out.length < count && qs.some(q => q.length)) {
-        for (const q of qs) {
-          while (q.length) {
-            const v = q.shift();
-            if (usable(v)) { seen.add(v); out.push(v); break; }
-          }
-          if (out.length === count) break;
-        }
-      }
-    };
-
-    drain(queues(homophonesOf));                 // 1) sound-alike mistakes first
-    drain(queues(ch => SIMILAR[ch] || []));      // 2) then look-alike mistakes
-
-    // last resort (practically never needed): change two letters at once
-    for (let tries = 0; out.length < count && tries < 60; tries++) {
-      const base = chars.slice();
-      shuffle(chars.map((_, i) => i)).slice(0, 2).forEach(i => {
-        const pool = [...homophonesOf(base[i]), ...(SIMILAR[base[i]] || [])];
-        if (pool.length) base[i] = pool[Math.floor(Math.random() * pool.length)];
-      });
-      const v = base.join('');
-      if (usable(v)) { seen.add(v); out.push(v); }
-    }
-    return out;
-  }
-
-  /* ====== Elements ====== */
-  const $ = id => document.getElementById(id);
-  const mainMenu = $('main-menu'), gameEl = $('game-area'), pictureEl = $('picture'), imgEl = $('img'), audioBtn = $('audioBtn');
-  const boardEl = $('board'), slotsEl = $('slots'), wordEl = $('word');
-  const statusEl = $('status'), poolEl = $('pool'), choicesEl = $('choices'), meaningEl = $('meaning');
-  const levelLabel = $('levelLabel'), trackEl = $('track'), fillEl = $('fill');
-  const prevBtn = $('prevBtn'), nextBtn = $('nextBtn'), finaleEl = $('finale'), againBtn = $('again');
-
-  /* ====== State ====== */
-  let levelIndex = 0;
-  let level = levels[0];
-  let slotCount = 0;
-  let tiles = [];        // [{ id, ch }]  every letter button, correct or distractor
-  let poolOrder = [];    // tile ids in their shuffled order
-  let slots = [];        // slots[i] = tile id or null (index 0 = right-most square)
-  let locked = false;    // true while checking / after solving
-  let timers = [];
-  let mode = 1;          // 1 = build the word, 2 = correct spelling, 3 = word & image match
-  let choices = [];      // modes 2/3: [{ word, correct }]
-  const HINT = {
-    1: 'Tap the letters in order',
-    2: 'Tap the correct spelling',
-    3: 'Tap the matching word'
-  };
-
-  const later = (fn, ms) => timers.push(setTimeout(fn, ms));
-  const clearTimers = () => { timers.forEach(clearTimeout); timers = []; };
-  const fa = n => n.toLocaleString('en-US');
-
-  function say(text, kind) {
-    statusEl.textContent = text || '';
-    $('statusRow').className = 'status ' + (kind || '');
-  }
-
-  function setProgress(done) {
-    const pct = Math.round(done / levels.length * 100);
-    fillEl.style.width = pct + '%';
-    trackEl.setAttribute('aria-valuenow', pct);
-  }
-
-  /* ====== Loading a level ====== */
-  function loadLevel(i) {
-    clearTimers();
-    levelIndex = i;
-    level = levels[i];
-    slotCount = Array.from(level.word).length;
-
-    tiles = [...level.letters, ...level.distractors].map((ch, id) => ({ id, ch }));
-    poolOrder = shuffle(tiles.map(t => t.id));
-    slots = Array(slotCount).fill(null);
-    locked = false;
-
-    boardEl.className = 'board';
-    wordEl.textContent = level.word;
-    prevBtn.disabled = i === 0;
-    nextBtn.disabled = i === levels.length - 1;
-    finaleEl.hidden = true;
-    gameEl.dataset.mode = mode;
-    meaningEl.hidden = false;               // English meaning is shown in every mode
-    meaningEl.textContent = level.meaning;
-    audioBtn.hidden = mode === 3;           // mode 3 is silent: no audio button, nothing is loaded
-    if (mode !== 1) buildChoices();
-    say(HINT[mode], '');
-    levelLabel.textContent = 'Level ' + fa(i + 1) + ' of ' + fa(levels.length);
-    setProgress(i);
-
-    // picture
-    pictureEl.classList.remove('missing');
-    imgEl.alt = 'Picture: ' + level.meaning;
-    imgEl.src = level.image;
-
-    // audio
-    stopAudio();
-    if (mode !== 3) audio.src = level.audio;
-
-    render();
-    renderChoices();
-
-    // entrance animation
-    gameEl.classList.remove('enter');
-    void gameEl.offsetWidth;
-    gameEl.classList.add('enter');
-    later(() => gameEl.classList.remove('enter'), 800);
-  }
-
-  /* ====== Multiple choice (modes 2 and 3): exactly 3 options ====== */
-  function buildChoices() {
-    const wrong = mode === 2
-      ? makeMisspellings(level.word, 2)                                                      // mode 2: fake, plausible misspellings
-      : shuffle(levels.filter(l => l.word !== level.word)).slice(0, 2).map(l => l.word);     // mode 3: two other real words
-    choices = shuffle([
-      { word: level.word, correct: true },
-      ...wrong.map(w => ({ word: w, correct: false }))
-    ]);
-  }
-
-  function renderChoices() {
-    choicesEl.replaceChildren();
-    if (mode === 1) return;
-    choices.forEach((c, i) => {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'choice';
-      b.dataset.i = i;
-      b.textContent = c.word;
-      choicesEl.appendChild(b);
-    });
-  }
-
-  choicesEl.addEventListener('click', e => {
-    const btn = e.target.closest('button[data-i]');
-    if (!btn || locked) return;
-    locked = true;
-    if (choices[Number(btn.dataset.i)].correct) {
-      btn.classList.add('right');
-      choicesEl.querySelectorAll('.choice:not(.right)').forEach(b => b.classList.add('dim'));
-      say('Great job!', 'ok');
-      setProgress(levelIndex + 1);
-      if (levelIndex === levels.length - 1) later(() => { finaleEl.hidden = false; }, 700);
-    } else {
-      btn.classList.add('wrong');             // red + shake (1s), then try again
-      say('Try again!', 'bad');
-      later(() => { btn.classList.remove('wrong'); say(HINT[mode], ''); locked = false; }, 1000);
-    }
-  });
-
-  /* ====== Views: main menu <-> game area ====== */
-  function stopAudio() {
-    audio.pause();
-    audio.removeAttribute('src');   // forget the file so nothing can resume or autoplay
-    audio.load();
-    audioBtn.classList.remove('playing');
-  }
-
-  function startMode(m) {
-    mode = m;
-    mainMenu.hidden = true;
-    gameEl.hidden = false;
-    loadLevel(0);
-    window.scrollTo(0, 0);
-  }
-
-  function backToMenu() {
-    clearTimers();
-    stopAudio();
-    locked = false;
-    gameEl.hidden = true;
-    mainMenu.hidden = false;
-    window.scrollTo(0, 0);
-  }
-
-  document.querySelectorAll('.menu-card').forEach(card =>
-    card.addEventListener('click', () => startMode(Number(card.dataset.mode))));
-  $('backBtn').addEventListener('click', backToMenu);
-
-  function makeTile(t) {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'tile';
-    b.dataset.id = t.id;
-    b.textContent = t.ch;
-    return b;
-  }
-
-  function render(popIndex) {
-    document.documentElement.style.setProperty('--n', slotCount);
-
-    // Squares
-    slotsEl.replaceChildren();
-    slots.forEach((id, i) => {
-      const s = document.createElement('div');
-      s.className = 'slot';
-      if (id !== null) {
-        s.classList.add('filled');
-        if (i !== popIndex) s.classList.add('static');
-        const b = makeTile(tiles[id]);
-        b.setAttribute('aria-label', 'Remove letter ' + tiles[id].ch);
-        s.appendChild(b);
-      }
-      slotsEl.appendChild(s);
-    });
-
-    // Pool: every tile that is not currently in a square, in its shuffled order
-    poolEl.replaceChildren();
-    poolOrder.filter(id => !slots.includes(id)).forEach(id => {
-      poolEl.appendChild(makeTile(tiles[id]));
-    });
-  }
-
-  /* ====== Interaction ====== */
-  poolEl.addEventListener('click', e => {
-    const btn = e.target.closest('button[data-id]');
-    if (!btn || locked) return;
-    const idx = slots.indexOf(null);          // first free square (right-most first)
-    if (idx === -1) return;
-    slots[idx] = Number(btn.dataset.id);
-    render(idx);
-    if (!slots.includes(null)) checkAnswer();
-  });
-
-  slotsEl.addEventListener('click', e => {
-    const btn = e.target.closest('button[data-id]');
-    if (!btn || locked) return;
-    const i = slots.indexOf(Number(btn.dataset.id));
-    if (i === -1) return;
-    slots[i] = null;                          // undo: back to the pool
-    render();
-  });
-
-  // Free navigation: works whether or not the current word was solved
-  nextBtn.addEventListener('click', () => { if (levelIndex < levels.length - 1) loadLevel(levelIndex + 1); });
-  prevBtn.addEventListener('click', () => { if (levelIndex > 0) loadLevel(levelIndex - 1); });
-  againBtn.addEventListener('click', () => loadLevel(0));
-
-  /* ====== Checking ====== */
-  function checkAnswer() {
-    locked = true;
-    const attempt = slots.map(id => tiles[id].ch).join('');
-    attempt === level.word ? onCorrect() : onWrong();
-  }
-
-  function onWrong() {
-    boardEl.classList.add('wrong');           // red + shake (2 x 0.5s = 1s)
-    say('Try again!', 'bad');
-    later(() => {
-      boardEl.classList.remove('wrong');
-      slots = Array(slotCount).fill(null);    // every letter returns to the pool
-      render();
-      say(HINT[mode], '');
-      locked = false;
-    }, 1000);
-  }
-
-  function onCorrect() {
-    boardEl.classList.add('ok');              // squares turn green
-    say('Great job!', 'ok');
-    setProgress(levelIndex + 1);
-    // distractors still in the pool fade away
-    poolEl.querySelectorAll('.tile').forEach(t => t.classList.add('fade'));
-    // then the separate squares fuse and the joined word appears
-    later(() => boardEl.classList.add('merged'), 650);
-    // after the last word, show the finale card
-    later(() => {
-      const last = levelIndex === levels.length - 1;
-      finaleEl.hidden = !last;
-      (last ? againBtn : nextBtn).focus({ preventScroll: true });
-    }, 1300);
-  }
-
-  /* ====== Picture & audio ====== */
-  imgEl.addEventListener('error', () => pictureEl.classList.add('missing'));
-
-  const audio = new Audio();
-  audio.preload = 'auto';
-  const stopAnim = () => audioBtn.classList.remove('playing');
-  audio.addEventListener('playing', () => audioBtn.classList.add('playing'));
-  ['ended', 'pause', 'error'].forEach(ev => audio.addEventListener(ev, stopAnim));
-
-  audioBtn.addEventListener('click', () => {
-    if (mode === 3 || !audio.getAttribute('src')) return;
-    try { audio.currentTime = 0; } catch (_) {}
-    const p = audio.play();
-    if (p && p.catch) p.catch(() => {
-      stopAnim();
-      if (!locked) say('Audio file not found', 'bad');
-    });
-  });
-
-  // The app starts on the main menu; a level loads only when a mode is chosen.
-</script>
-</body>
-</html>
+  // Returns `count` believable FAKE spellings of `word`, each 
